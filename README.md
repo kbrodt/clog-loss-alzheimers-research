@@ -106,6 +106,8 @@ five different snapshots on various epochs of the same model were averaged.
 
 #### Tried
 
+I tried to improve second part of baseline model 2D CNN + LSTM. LSTM was replaced by 1D CNN and Transformer, but the score was the same as with LSTM (0.59 score). New neural network ResNeSt works not better than Efficientnets. Surprisingly, but test time augmentations worsen the score. One thing I find is interesting that width and height has positive signal, i. e. if we train some model (linear or gradient boosting) with these two features we can get 0.16 Matthew correlation coefficient on local validation. But I didn’t try it on leader board. Furthermore it is useless in production.
+
 - 2D CNN + LSTM (0.59 LB)
 - 2D CNN + Transformer is not better than LSTM
 - 2D CNN + 1D CNN is not better than LSTM
