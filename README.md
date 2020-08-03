@@ -90,6 +90,7 @@ was getting worse on LB. So I discarded this idea on early stage of model develo
 - AdamW with learning rate `1e-4`
 - CosineAnealing scheduler
 - Spatial augmentations like horizontal and vertical flips, rotate on 90, distortions, noise. Depths didn't touch. See [`dataset.py`](./src/dataset.py#L10)
+- Balanced sampler with 1/4 ratio of stalled and non-stalled samples
 - Mean of 5 predictions of 5 different snapshots of the same model 3D ResNet101
 
 #### Tried
