@@ -20,16 +20,16 @@ pip install -r requirements.txt
 
 First download the train and test data from the competition link into `/home/data/clog-loss` folder.
 
-Then you must prepare train and test datasets.
+Then you have to prepare train and test datasets.
 
 ```bash
 sh ./preprocess.sh
 ```
 
-This will download whole dataset (1.4Tb), crop the region of interest from video using code provided by `@Moshel` on the [forum](https://community.drivendata.org/t/python-code-to-find-the-roi/4499) 
-and save it in [lmdb](https://github.com/jnwatson/py-lmdb) format for fast reading of 3D arrays. Note, it will take around
-1 day and consume 200Gb of RAM, hence disk. So, if you have not enough RAM you can easily rewrite the code to process
-the data by chunks.
+This will download whole dataset (1.4Tb), crop the region of interest from video using code provided by `@Moshel`
+on the [forum](https://community.drivendata.org/t/python-code-to-find-the-roi/4499) and save it in
+[lmdb](https://github.com/jnwatson/py-lmdb) format for fast reading of 3D arrays. Note, it will take around 1 day
+and consume 200Gb of RAM, hence disk. So, if you have not enough RAM you can easily rewrite the code to process the data by chunks.
 
 #### Train
 
@@ -39,11 +39,19 @@ To train the model run
 sh ./train.sh
 ```
 
-On 1 GPU Tesla V100 it will take around 1 week.
+On 1 GPU Tesla V100 it will take around 2-3 weeks. If you have more GPUs, you can train the model in a distributed manner.
+For example, if you have 4 GPUs rewrite code in [`train.sh`](./train.sh)
+
+```bash
+GPU=0,1,2,3
+N_GPUS=4
+
+CUDA_VISIBLE_DEVICES=$GPU python -m torch.distributed.launch --nproc_per_node=$N_GPUS ./src/train.py <OTHER_ARGUMENTS>
+```
 
 #### Test
 
-To make inference on test dataset run
+Once the model trained run the following command to do inference on test.
 
 ```bash
 sh ./test.sh
@@ -51,37 +59,37 @@ sh ./test.sh
 
 On 1 GPU Tesla V100 it takes around 40m.
 
-You can also download the trained models from [yandex disk](https://yadi.sk/d/2GGRsM-ac5CaKQ),
-unzip and run
+You can also download the trained models from [yandex disk](https://yadi.sk/d/2GGRsM-ac5CaKQ), unzip and run
 
 ```bash
 sh ./predict.py
 ```
 
-Last two commands will generate submission file.
+Last two scripts will generate submission file with probabilities. Use 0.5 threshold to convert them into binary format.
 
 ### Approach
 
-3D Convolutional network on full tier 1 data. 
+3D Convolutional network on full tier 1 and tier 2 datasets.
 
 #### First observations
 
-Interestingly, height and width of crops have positive signal. Simple gradient boosting on these 2 features gives 0.16
-local validation. I only tried to add them into video features, but the score was getting worse on LB. So I discarded
-this idea on early stage of model development, which probably cost me the 1st place :) Baseline model based on 2D CNN as features extractors for video frames and LSTM
-as classifier reaches 0.59 LB. Single 3D ResNet34 on `Micro` dataset already gives 0.68 on LB. With 2 folds and TTAs one
-can reach 0.76. Heavier models like 3D ResNet50 and ResNet101 has 0.71 and 0.76 respectively. On full tier 1 dataset
-single 3D ResNet34 gives 0.81.
+Baseline model based on 2D CNN as feature extractor for video frames and LSTM as classifier reaches 0.59 LB.
+Single 3D ResNet34 on `Micro` dataset already gives 0.68 on LB. With 2 folds and TTAs one can reach 0.76.
+Heavier models like 3D ResNet50 and ResNet101 has 0.71 and 0.76 respectively. On full tier 1 dataset single
+3D ResNet34 gives 0.81. Interestingly, height and width of crops have a positive signal. Gradient boosting
+on these 2 features gives 0.16 on local validation. I only tried to add them into video features, but the score
+was getting worse on LB. So I discarded this idea on early stage of model development.
 
-#### Summary
+#### Highlights
 
-- 160x160xF resized crops of ROIs of full tier 1 dataset, where F is a video depth
 - 3D ResNet101
+- 160x160xF resized crops of ROIs, where F is a video depth
+- Full tier 1 dataset and all stalled examples from tier 2 dataset with crowd score > 0.6
 - Binary Cross Entropy
 - Batch size 4
-- AdamW with `1e-4` learning rate
+- AdamW with learning rate `1e-4`
 - CosineAnealing scheduler
-- Augmentations, like horizontal and vertical flips, rotate on 90, distortions, noise
+- Spatial augmentations like horizontal and vertical flips, rotate on 90, distortions, noise. Depths didn't touch. See [`dataset.py`](./src/dataset.py#L10)
 - Mean of 5 predictions of 5 different snapshots of the same model 3D ResNet101
 
 #### Tried
@@ -92,14 +100,7 @@ single 3D ResNet34 gives 0.81.
 - 3D CNN Efficientnet doesn't train
 - Test time augmentations doesn't improve score
 - Focal and Lovasz losses are not better than BCE
-- Crowd score instead binary label in loss, but the results are the same
-- No improvements using tier 2 dataset with crowd score > 0.6 
-- 2nd level model on out of fold predictions with additional features like size of crop worsen local validation and public LB
-(drama at the end)
-- 1 round of pseudo-labeling (not enough investigated)
+- Crowd score instead binary label in loss, but the results are alomost the same
+- 2nd level model on out of fold predictions with additional features of crop (width and height) worsen local validation and public LB
 - [AdaTune](https://github.com/awslabs/adatune) works same as `lr=1e-4`
-
-#### Possible improvements
-
-- As it turns out 2nd level model highly improves private score, simply using extra features like width and height of
-crop you can get +2 points on private. But it is useless in production :)
+- 1 round of pseudo-labeling (not enough investigated)
