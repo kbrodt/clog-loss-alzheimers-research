@@ -80,6 +80,17 @@ Heavier models like 3D ResNet50 and ResNet101 has 0.71 and 0.76 respectively. On
 on these 2 features gives 0.16 on local validation. I only tried to add them into video features, but the score
 was getting worse on LB. So I discarded this idea on early stage of model development.
 
+#### Summary
+
+The best models for 2D image recognition are 2D convolutional neural networks (CNNs). Most likely this will be true for 3D.
+So the 3D CNNs were chosen, namely ResNets. Thanks to provided region of interest on video one can crop it to reduce significantly
+disk and, hence, ram usage. To deal with different spatial resolutions of frames they were resized to 160x160. Depth dimension
+was zero-padded till the longest depth of all samples in the batch. As dataset is highly imbalanced balanced sampler with ¼ ratio
+of positive (stalled) classes was applied. This also makes training faster. Heavy ResNet101 model was trained with binary cross entropy
+loss with standard spatial augmentations like horizontal and vertical flips, distortions and noise. Finally, deep learning is data-hungry
+so the model was trained on full tier 1 dataset and all stalled samples with crowd score> 0.6 from tier 2 dataset. The predictions of
+five different snapshots on various epochs of the same model were averaged.
+
 #### Highlights
 
 - 3D ResNet101
